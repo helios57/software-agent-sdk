@@ -17,8 +17,26 @@ logger = get_logger(__name__)
 
 # Maximum recent events to scan for stuck detection.
 # This window should be large enough to capture repetitive patterns
-# (4 repeats × 2 events per cycle = 8 events minimum, plus buffer for user messages)
-MAX_EVENTS_TO_SCAN_FOR_STUCK_DETECTION: int = 20
+# (4 repeats × 2 events per cycle = 8 events minimum, plus buffer for user messages).
+# Reasoning/thinking models (DeepSeek R1/V4, o1, o3, Claude extended thinking) add 30-60s
+# latency per turn, so normal agent pauses can look like "stuck" with tighter windows.
+# At 48 events we can safely detect true loops without false positives on reasoning models.
+MAX_EVENTS_TO_SCAN_FOR_STUCK_DETECTION: int = 48
+
+# Model families that use reasoning/thinking mode with elevated per-turn latency.
+# The stuck detector applies a 2x multiplier to all thresholds for these families
+# to avoid false positives from normal thinking pauses.
+_REASONING_MODEL_FAMILIES: frozenset[str] = frozenset({
+    "deepseek",
+    "openai_gpt",  # o1, o3 use reasoning effort
+})
+
+
+def _reasoning_multiplier(model_family: str | None) -> int:
+    """Return 2 if the model family is a known reasoning family, else 1."""
+    if model_family and model_family.lower() in _REASONING_MODEL_FAMILIES:
+        return 2
+    return 1
 
 
 class StuckDetector:
@@ -30,18 +48,36 @@ class StuckDetector:
     3. Agent monologue (repeated messages without user input)
     4. Repeating alternating action-observation patterns
     5. Context window errors indicating memory issues
+
+    Reasoning model awareness:
+    Models with thinking/reasoning modes (DeepSeek, o1/o3, Claude extended thinking)
+    naturally take longer per turn. The detector applies a 2x multiplier to all thresholds
+    for these model families to avoid false positives from normal thinking pauses.
     """
 
     state: ConversationState
     thresholds: StuckDetectionThresholds
+    _model_family: str | None
 
     def __init__(
         self,
         state: ConversationState,
         thresholds: StuckDetectionThresholds | None = None,
+        model_family: str | None = None,
     ):
         self.state = state
-        self.thresholds = thresholds or StuckDetectionThresholds()
+        self._model_family = model_family
+        base = thresholds or StuckDetectionThresholds()
+        mult = _reasoning_multiplier(self._model_family)
+        if mult > 1:
+            self.thresholds = StuckDetectionThresholds(
+                action_observation=base.action_observation * mult,
+                action_error=base.action_error * mult,
+                monologue=base.monologue * mult,
+                alternating_pattern=base.alternating_pattern * mult,
+            )
+        else:
+            self.thresholds = base
 
     @property
     def action_observation_threshold(self) -> int:

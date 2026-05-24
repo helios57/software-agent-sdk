@@ -264,9 +264,27 @@ class LocalConversation(BaseConversation):
                 )
             else:
                 threshold_config = stuck_detection_thresholds
+
+            # Detect model family for reasoning-aware stuck detection
+            model_family: str | None = None
+            if agent is not None and hasattr(agent, 'llm') and agent.llm is not None:
+                try:
+                    from openhands.sdk.llm.utils.model_prompt_spec import (
+                        get_model_prompt_spec,
+                    )
+                    model_name = getattr(agent.llm, 'model', '') or ''
+                    canonical = getattr(
+                        agent.llm, 'model_canonical_name', None
+                    )
+                    spec = get_model_prompt_spec(model_name, canonical)
+                    model_family = spec.family
+                except Exception:
+                    pass
+
             self._stuck_detector = StuckDetector(
                 self._state,
                 thresholds=threshold_config,
+                model_family=model_family,
             )
         else:
             self._stuck_detector = None

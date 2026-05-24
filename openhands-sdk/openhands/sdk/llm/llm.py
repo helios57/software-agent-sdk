@@ -256,7 +256,9 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
     max_message_chars: int = Field(
         default=30_000,
         ge=1,
-        description="Approx max chars in each event/content sent to the LLM.",
+        description="Approx max chars in each event/content sent to the LLM."
+        " Used by terminal tool and other content-producing tools to truncate"
+        " output before sending to the LLM context.",
     )
 
     temperature: float | None = Field(
@@ -377,11 +379,11 @@ class LLM(BaseModel, RetryMixin, NonNativeToolCallingMixin):
             "like HuggingFace and Groq."
         ),
     )
-    reasoning_effort: Literal["low", "medium", "high", "xhigh", "none"] | None = Field(
-        default="high",
+    reasoning_effort: Literal["low", "medium", "high", "xhigh", "max", "none"] | None = Field(
+        default="max",
         description="The effort to put into reasoning. "
         "This is a string that can be one of 'low', 'medium', 'high', 'xhigh', "
-        "or 'none'. "
+        "'max', or 'none'. "
         "Can apply to all reasoning models.",
     )
     reasoning_summary: Literal["auto", "concise", "detailed"] | None = Field(
