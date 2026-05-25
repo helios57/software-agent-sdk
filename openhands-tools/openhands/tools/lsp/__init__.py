@@ -158,7 +158,7 @@ def register_lsp_tools() -> None:
     register_tool(PlaneCreateCycleTool.name, PlaneCreateCycleTool)
     register_tool(PlaneSyncTaskTool.name, PlaneSyncTaskTool)
 
-    logger.info('Registered %d LSP/AST refactoring tools', 31)
+    logger.info('Registered %d LSP/AST refactoring tools', 32)
 
 
 # List all tool names for discovery

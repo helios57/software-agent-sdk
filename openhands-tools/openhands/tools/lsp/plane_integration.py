@@ -32,6 +32,7 @@ from urllib.parse import urljoin
 
 import requests
 
+from openhands.sdk.llm import TextContent
 from openhands.sdk.tool.schema import Action, Observation
 from openhands.sdk.tool.tool import ToolDefinition, ToolAnnotations
 
@@ -281,11 +282,11 @@ class PlaneObservation(Observation):
     @classmethod
     def from_response(cls, data: dict[str, Any]) -> PlaneObservation:
         text = '```json\n' + json.dumps(data, indent=2) + '\n```'
-        obs = Observation.from_text(text)
-        obs.__class__ = cls
-        obs.plane_data = data
-        obs.is_error = bool(data.get('error'))
-        return obs
+        return cls.model_construct(
+            content=[TextContent(text=text)],
+            is_error=bool(data.get('error')),
+            plane_data=data,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -378,7 +379,6 @@ class PlaneCreateIssueTool(
 ):
     """Create a new issue in a Plane project."""
 
-    name: str = 'plane_create_issue'
     description: str = (
         'Create a new issue in a Plane project. Returns the issue ID, '
         'sequence ID (e.g. PROJ-42), and URL. Requires project UUID.'
@@ -460,7 +460,6 @@ class PlaneUpdateIssueTool(
 ):
     """Update a Plane issue's state or properties."""
 
-    name: str = 'plane_update_issue'
     description: str = (
         'Update a Plane issue: change state (backlog → in progress → done), '
         'reassign, change priority, update description. '
@@ -547,7 +546,6 @@ class PlaneCommentIssueTool(
 ):
     """Add a comment to a Plane issue."""
 
-    name: str = 'plane_comment_issue'
     description: str = (
         'Add a Markdown comment to a Plane issue. Use this to log '
         'important events: PRs opened, tests passing/failing, '
@@ -601,7 +599,6 @@ class PlaneGetIssuesTool(
 ):
     """List/filter issues in a Plane project."""
 
-    name: str = 'plane_get_issues'
     description: str = (
         'List issues in a Plane project with optional filters by state, '
         'assignee, priority, cycle, labels, and full-text search. '
@@ -687,7 +684,6 @@ class PlaneCreateCycleTool(
 ):
     """Create a sprint/cycle in a Plane project."""
 
-    name: str = 'plane_create_cycle'
     description: str = (
         'Create a sprint/cycle in a Plane project. Returns the cycle ID '
         'which can be used when creating or updating issues.'
@@ -754,7 +750,6 @@ class PlaneSyncTaskTool(
     progress, and optionally adds a comment.
     """
 
-    name: str = 'plane_sync_task'
     description: str = (
         'Sync an OpenHands task to a Plane issue. Creates the issue if '
         'it does not exist, updates its workflow state, and optionally '

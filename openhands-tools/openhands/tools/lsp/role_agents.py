@@ -29,6 +29,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from openhands.sdk.llm import TextContent
 from openhands.sdk.tool.schema import Action, Observation
 from openhands.sdk.tool.tool import ToolDefinition, ToolAnnotations
 
@@ -120,11 +121,12 @@ class RoleAgentObservation(Observation):
     @classmethod
     def from_data(cls, data: dict[str, Any]) -> RoleAgentObservation:
         text = '```json\n' + json.dumps(data, indent=2) + '\n```'
-        obs = Observation.from_text(text)
-        obs.__class__ = cls
-        obs.agent_data = data
-        obs.is_error = bool(data.get('error'))
-        return obs
+        is_error = bool(data.get('error'))
+        return cls.model_construct(
+            content=[TextContent(text=text)],
+            is_error=is_error,
+            agent_data=data,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -135,7 +137,6 @@ class RoleAgentObservation(Observation):
 class DecomposeTaskTool(ToolDefinition[DecomposeTaskAction, RoleAgentObservation]):
     """Break a high-level task into language-specific sub-tasks."""
 
-    name: str = 'decompose_task'
     description: str = (
         'Break a high-level task into language-specific sub-tasks. '
         'Each sub-task targets a specific repo and language. '
@@ -217,7 +218,6 @@ class DecomposeTaskExecutor:
 class ValidateContractTool(ToolDefinition[ValidateContractAction, RoleAgentObservation]):
     """Validate that implementation output conforms to API contract."""
 
-    name: str = 'validate_contract'
     description: str = (
         'Validate that an implementation conforms to its API contract. '
         'Supports .proto (buf breaking), OpenAPI (spectral), GraphQL. '
@@ -350,7 +350,6 @@ class ReviewSpecialistTool(ToolDefinition[ReviewSpecialistAction, RoleAgentObser
     severity: critical, warning, suggestion.
     """
 
-    name: str = 'review_specialist'
     description: str = (
         'Perform a structured code review of a diff. Returns severity-ranked '
         'findings: critical (security, data loss), warning (perf, correctness), '
@@ -415,7 +414,7 @@ class ReviewSpecialistExecutor:
          'Silenced exception — at minimum log the error'),
         (r'\.get\(\)\s*\.', 'warning',
          'Possible AttributeError from None — use .filter().first() or add default'),
-        (r'open\s*\(\s*\w+.*\)\s+as', 'suggestion',
+        (r'open\s*\(\s*(?:\w+|["\x27][^"\x27]+["\x27]).*\)\s+as', 'suggestion',
          'File opened without encoding — use encoding="utf-8"'),
         (r'self\.\w+\s*=\s*\{\}', 'suggestion',
          'Mutable class-level default — move to __init__'),
@@ -565,7 +564,6 @@ class ReviewSpecialistExecutor:
 class TestSpecialistTool(ToolDefinition[TestSpecialistAction, RoleAgentObservation]):
     """Run tests, collect coverage, and identify gaps."""
 
-    name: str = 'test_specialist'
     description: str = (
         'Run tests and analyse coverage. Returns pass/fail/skip counts, '
         'coverage percentage, and a list of files/modules below the '
@@ -739,7 +737,6 @@ class TestSpecialistExecutor:
 class E2EUserTestTool(ToolDefinition[E2EUserTestAction, RoleAgentObservation]):
     """End-to-end test using a real browser, behaving like a real user."""
 
-    name: str = 'e2e_user_test'
     description: str = (
         'Run an end-to-end test using a real browser (Playwright). '
         'Performs user actions (click, type, navigate, scroll, hover, select) '
@@ -757,6 +754,9 @@ class E2EUserTestTool(ToolDefinition[E2EUserTestAction, RoleAgentObservation]):
     @classmethod
     def create(cls, conv_state: Any = None, **params: Any) -> E2EUserTestTool:
         return cls(executor=E2EUserTestExecutor())
+
+
+E2EUserTestTool.name = 'e2e_user_test'
 
 
 class E2EUserTestExecutor:
