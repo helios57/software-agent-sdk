@@ -14,9 +14,14 @@ Tools by priority:
 
 Force Multipliers:
   FM1 — Memory:    semantic_checkpoint, semantic_recall
-  FM2 — Roles:     decompose_task, validate_contract
+  FM2 — Roles:     decompose_task, validate_contract,
+                   review_specialist, test_specialist, e2e_user_test
   FM3 — ArgoCD:    argocd_health_check
   FM4 — Tests:     test_gen, test_refine
+
+Integrations:
+  Plane — plane_create_issue, plane_update_issue, plane_comment_issue,
+          plane_get_issues, plane_create_cycle, plane_sync_task
 
 Activation:
     from openhands.tools.lsp import register_lsp_tools
@@ -35,8 +40,8 @@ logger = logging.getLogger(__name__)
 def register_lsp_tools() -> None:
     """Register all LSP/AST refactoring tools with the global tool registry.
 
-    Call this early in agent initialization (e.g., from register_default_tools())
-    to make the tools available to all agents.
+    Call this early in agent initialization (e.g., from
+    register_default_tools()) to make the tools available to all agents.
     """
     # ── P1: Python tools ─────────────────────────────────────────────────
     from openhands.tools.lsp.python import (
@@ -111,10 +116,16 @@ def register_lsp_tools() -> None:
     from openhands.tools.lsp.role_agents import (
         DecomposeTaskTool,
         ValidateContractTool,
+        ReviewSpecialistTool,
+        TestSpecialistTool,
+        E2EUserTestTool,
     )
 
     register_tool(DecomposeTaskTool.name, DecomposeTaskTool)
     register_tool(ValidateContractTool.name, ValidateContractTool)
+    register_tool(ReviewSpecialistTool.name, ReviewSpecialistTool)
+    register_tool(TestSpecialistTool.name, TestSpecialistTool)
+    register_tool(E2EUserTestTool.name, E2EUserTestTool)
 
     # ── FM3: ArgoCD health ───────────────────────────────────────────────
     from openhands.tools.lsp.argo_health import ArgoCDHealthCheckTool
@@ -130,7 +141,24 @@ def register_lsp_tools() -> None:
     register_tool(TestGenTool.name, TestGenTool)
     register_tool(TestRefineTool.name, TestRefineTool)
 
-    logger.info('Registered %d LSP/AST refactoring tools', 22)
+    # ── Plane integration ────────────────────────────────────────────────
+    from openhands.tools.lsp.plane_integration import (
+        PlaneCreateIssueTool,
+        PlaneUpdateIssueTool,
+        PlaneCommentIssueTool,
+        PlaneGetIssuesTool,
+        PlaneCreateCycleTool,
+        PlaneSyncTaskTool,
+    )
+
+    register_tool(PlaneCreateIssueTool.name, PlaneCreateIssueTool)
+    register_tool(PlaneUpdateIssueTool.name, PlaneUpdateIssueTool)
+    register_tool(PlaneCommentIssueTool.name, PlaneCommentIssueTool)
+    register_tool(PlaneGetIssuesTool.name, PlaneGetIssuesTool)
+    register_tool(PlaneCreateCycleTool.name, PlaneCreateCycleTool)
+    register_tool(PlaneSyncTaskTool.name, PlaneSyncTaskTool)
+
+    logger.info('Registered %d LSP/AST refactoring tools', 31)
 
 
 # List all tool names for discovery
@@ -150,8 +178,12 @@ ALL_LSP_TOOLS = [
     # Force multipliers
     'semantic_checkpoint', 'semantic_recall',
     'decompose_task', 'validate_contract',
+    'review_specialist', 'test_specialist', 'e2e_user_test',
     'argocd_health_check',
     'test_gen', 'test_refine',
+    # Plane integration
+    'plane_create_issue', 'plane_update_issue', 'plane_comment_issue',
+    'plane_get_issues', 'plane_create_cycle', 'plane_sync_task',
 ]
 
 __all__ = [
